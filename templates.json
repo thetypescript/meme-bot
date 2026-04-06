@@ -1,0 +1,67 @@
+{
+  "templates": [
+    {
+      "id": "drake",
+      "name": "Drake Hotline Bling",
+      "file": "drake.jpg",
+      "top_text_pos": [50, 80],
+      "bottom_text_pos": [50, 400],
+      "text_color": "white"
+    },
+    {
+      "id": "distracted",
+      "name": "Distracted Boyfriend",
+      "file": "distracted.jpg",
+      "top_text_pos": [420, 100],
+      "bottom_text_pos": [50, 380],
+      "text_color": "white"
+    },
+    {
+      "id": "success",
+      "name": "Success Kid",
+      "file": "success.jpg",
+      "top_text_pos": [30, 30],
+      "bottom_text_pos": [30, 380],
+      "text_color": "white"
+    },
+    {
+      "id": "changing",
+      "name": "Changing My Mind",
+      "file": "changing.jpg",
+      "top_text_pos": [50, 380],
+      "bottom_text_pos": [50, 520],
+      "text_color": "white"
+    },
+    {
+      "id": "spongebob",
+      "name": "Mocking SpongeBob",
+      "file": "spongebob.jpg",
+      "top_text_pos": [30, 30],
+      "bottom_text_pos": [30, 280],
+      "text_color": "white"
+    },
+    {
+      "id": "one_does_not",
+      "name": "One Does Not Simply",
+      "file": "one_does_not.jpg",
+      "top_text_pos": [50, 430],
+      "bottom_text_pos": [50, 520],
+      "text_color": "white"
+    },
+    {
+      "id": "this_is_fine",
+      "name": "This is Fine",
+      "file": "this_is_fine.jpg",
+      "top_text_pos": [50, 380],
+      "text_color": "black"
+    },
+    {
+      "id": "expanding",
+      "name": "Expanding Brain",
+      "file": "expanding.jpg",
+      "top_text_pos": [50, 50],
+      "bottom_text_pos": [50, 550],
+      "text_color": "white"
+    }
+  ]
+}
