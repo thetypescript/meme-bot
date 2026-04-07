@@ -3,6 +3,9 @@ __pycache__/
 .env
 .vscode/
 .idea/
+venv/
+*.log
+memes/*.jpg
+memes/*.png
 templates/*.jpg
 templates/*.png
-EOF; __hermes_rc=$?; printf '__HERMES_FENCE_a9f7b3__'; exit $__hermes_rc

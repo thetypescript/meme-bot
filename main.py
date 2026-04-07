@@ -1,115 +1,191 @@
 import asyncio
-import json
 import os
+import logging
 from dotenv import load_dotenv
 from aiogram import Bot, Dispatcher, types, F
 from aiogram.filters import Command
-from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, FSInputFile
-
-from utils.meme_generator import MemeGenerator
+from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+from aiogram.client.default import DefaultBotProperties
 
 load_dotenv()
 
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
 BOT_TOKEN = os.getenv("BOT_TOKEN")
-bot = Bot(token=BOT_TOKEN)
+bot = Bot(token=BOT_TOKEN, default=DefaultBotProperties(parse_mode="Markdown"))
 dp = Dispatcher()
 
-meme_gen = MemeGenerator()
+MEME_LORD_NAME = "Meme Lord 69"
 
-# Load templates
-with open("templates.json", "r") as f:
-    TEMPLATES = json.load(f)["templates"]
+TEMPLATES = {
+    "drake": "Drake Hotline Bling",
+    "distracted": "Distracted Boyfriend",
+    "success": "Success Kid",
+    "changemymind": "Change My Mind",
+    "spongebob": "Mocking SpongeBob",
+    "onedoesnot": "One Does Not Simply",
+    "fine": "This Is Fine",
+    "expandingbrain": "Expanding Brain",
+    "womanyelling": "Woman Yelling At Cat",
+    "exit12": "Exit 12",
+}
 
-template_map = {t["id"]: t for t in TEMPLATES}
-current_user_template = {}
+# Track user's selected template and text step
+user_state = {}  # user_id -> {"template": str, "step": "text"|"confirm"}
+
+
+def build_template_keyboard():
+    keyboard = []
+    for key, name in TEMPLATES.items():
+        keyboard.append([InlineKeyboardButton(text=name, callback_data=f"tmpl:{key}")])
+    return InlineKeyboardMarkup(inline_keyboard=keyboard)
+
+
+def build_random_keyboard():
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="🎲 Random Template", callback_data="tmpl:random")]
+    ])
+
 
 @dp.message(Command("start"))
 async def start(message: types.Message):
     await message.answer(
-        "🤖 **Meme Generator Bot** is ready!\n\n"
-        "Use /meme to create a meme.\n"
-        "You can send text with `|` to separate top and bottom text.",
-        parse_mode="Markdown"
+        f"🤖 *{MEME_LORD_NAME}* has arrived!\n\n"
+        "Commands:\n"
+        "/meme — Pick a template & make a meme\n"
+        "/random — Random meme template\n"
+        "/help — How to use\n"
+        "/cancel — Cancel current meme"
     )
+
+
+@dp.message(Command("help"))
+async def help_cmd(message: types.Message):
+    await message.answer(
+        f"*How to use {MEME_LORD_NAME}:*\n\n"
+        "1. Send /meme to see templates\n"
+        "2. Pick one\n"
+        "3. Send your text with `|` to split top/bottom\n"
+        "   Example: `Top text|Bottom text`\n"
+        "4. Meme gets generated!\n\n"
+        "Pro tip: Use `_` for spaces and `~` for formatting in text."
+    )
+
+
+@dp.message(Command("cancel"))
+async def cancel(message: types.Message):
+    uid = message.from_user.id
+    if uid in user_state:
+        del user_state[uid]
+        await message.answer("❌ Cancelled. Send /meme to start over.")
+    else:
+        await message.answer("Nothing to cancel. Send /meme to start!")
+
 
 @dp.message(Command("meme"))
-async def show_meme_templates(message: types.Message):
-    keyboard = []
-    for template in TEMPLATES:
-        keyboard.append([InlineKeyboardButton(
-            text=template["name"], 
-            callback_data=f"temp:{template['id']}"
-        )])
-    
+async def show_templates(message: types.Message):
+    keyboard = build_template_keyboard()
     await message.answer(
-        "🎨 **Choose a meme template:**",
-        reply_markup=InlineKeyboardMarkup(inline_keyboard=keyboard),
-        parse_mode="Markdown"
+        f"🔥 *{MEME_LORD_NAME}* — Choose your weapon:",
+        reply_markup=keyboard
     )
 
-@dp.callback_query(F.data.startswith("temp:"))
-async def select_template(callback: types.CallbackQuery):
-    template_id = callback.data.split(":")[1]
-    current_user_template[callback.from_user.id] = template_id
-    
-    template = template_map.get(template_id)
-    
+
+@dp.message(Command("random"))
+async def random_meme(message: types.Message):
+    import random
+    key = random.choice(list(TEMPLATES.keys()))
+    user_state[message.from_user.id] = {"template": key}
+    name = TEMPLATES[key]
+    await message.answer(
+        f"🎲 Random pick: *{name}*\n\n"
+        "Send your meme text now!\n"
+        "Use `|` to separate top and bottom.\n"
+        "Example: `Top text|Bottom text`"
+    )
+
+
+@dp.callback_query(F.data.startswith("tmpl:"))
+async def handle_template(callback: types.CallbackQuery):
+    template = callback.data.split(":")[1]
+
+    if template == "random":
+        import random
+        template = random.choice(list(TEMPLATES.keys()))
+
+    user_state[callback.from_user.id] = {"template": template}
+    name = TEMPLATES.get(template, template)
+
     await callback.message.edit_text(
-        f"✅ **Selected:** {template['name']}\n\n"
-        "Now send your meme text.\n"
-        "You can use `|` to separate top and bottom text.\n\n"
-        "Example: `When you see the code|But it works`"
+        f"✅ Selected: *{name}*\n\n"
+        "Send your meme text now!\n"
+        "Use `|` to separate top and bottom.\n"
+        "Example: `Top text|Bottom text`"
     )
     await callback.answer()
 
+
 @dp.message(F.text)
 async def generate_meme(message: types.Message):
-    user_id = message.from_user.id
+    uid = message.from_user.id
+
+    # Skip if it's a command (handled by Command() filters above)
+    if message.text and message.text.startswith("/"):
+        return
+
+    if uid not in user_state:
+        await message.answer("Send /meme first to pick a template! 🤖")
+        return
+
+    template = user_state[uid]["template"]
     text = message.text.strip()
-    
-    if user_id not in current_user_template:
-        await message.answer("Please use /meme first to choose a template.")
+
+    if not text:
+        await message.answer("Send some text! Use `|` to split top/bottom.")
         return
-    
-    template_id = current_user_template[user_id]
-    template = template_map.get(template_id)
-    
-    if not template:
-        await message.answer("Template not found.")
-        return
-    
-    template_path = f"templates/{template['file']}"
-    output_path = f"memes/meme_{user_id}.jpg"
-    
-    os.makedirs("memes", exist_ok=True)
-    
-    top_text = text
-    bottom_text = ""
-    
+
+    top = text
+    bottom = ""
+
     if "|" in text:
         parts = [p.strip() for p in text.split("|", 1)]
-        top_text = parts[0]
-        if len(parts) > 1:
-            bottom_text = parts[1]
-    
+        top = parts[0] or " "
+        bottom = parts[1] if len(parts) > 1 else ""
+
+    # URL-encode special chars for memegen.link
+    from urllib.parse import quote
+    top_enc = quote(top)
+    bottom_enc = quote(bottom)
+
+    url = f"https://api.memegen.link/images/{template}/{top_enc}/{bottom_enc}.jpg"
+
     try:
-        meme_gen.create_meme(
-            template_path=template_path,
-            top_text=top_text,
-            bottom_text=bottom_text,
-            output_path=output_path
-        )
-        
         await message.answer_photo(
-            FSInputFile(output_path),
-            caption=f"🎉 Your meme is ready!\nTemplate: {template['name']}"
+            url,
+            caption=f"🔥 Delivered by *{MEME_LORD_NAME}*"
         )
     except Exception as e:
-        await message.answer(f"❌ Error generating meme: {str(e)}")
+        logger.error(f"Meme generation failed: {e}")
+        # Fallback: try without custom text
+        try:
+            fallback_url = f"https://api.memegen.link/images/{template}.jpg"
+            await message.answer_photo(
+                fallback_url,
+                caption=f"⚠️ Custom text failed, here's the template.\nDelivered by *{MEME_LORD_NAME}*"
+            )
+        except Exception as e2:
+            logger.error(f"Fallback also failed: {e2}")
+            await message.answer("❌ Failed to generate meme. Try different text or another template.")
+
+    # Clean up state
+    del user_state[uid]
+
 
 async def main():
-    print("🚀 Meme Bot is starting...")
+    print(f"🚀 {MEME_LORD_NAME} is now online...")
     await dp.start_polling(bot)
+
 
 if __name__ == "__main__":
     asyncio.run(main())
