@@ -117,13 +117,20 @@ async def handle_template(callback: types.CallbackQuery):
     user_state[callback.from_user.id] = {"template": template}
     name = TEMPLATES.get(template, template)
 
-    await callback.message.edit_text(
-        f"✅ Selected: *{name}*\n\n"
-        "Send your meme text now!\n"
-        "Use `|` to separate top and bottom.\n"
-        "Example: `Top text|Bottom text`"
-    )
-    await callback.answer()
+    try:
+        await callback.message.edit_text(
+            f"✅ Selected: *{name}*\n\n"
+            "Send your meme text now!\n"
+            "Use `|` to separate top and bottom.\n"
+            "Example: `Top text|Bottom text`"
+        )
+    except Exception:
+        pass  # message already edited (stale callback)
+
+    try:
+        await callback.answer()
+    except Exception:
+        pass
 
 
 @dp.message(F.text)
@@ -153,27 +160,53 @@ async def generate_meme(message: types.Message):
         top = parts[0] or " "
         bottom = parts[1] if len(parts) > 1 else ""
 
-    # URL-encode special chars for memegen.link
     from urllib.parse import quote
+    import aiohttp
+    import tempfile
+
     top_enc = quote(top)
     bottom_enc = quote(bottom)
-
     url = f"https://api.memegen.link/images/{template}/{top_enc}/{bottom_enc}.jpg"
 
+    await message.answer("🎨 Cooking your meme...")
+
     try:
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url, allow_redirects=True) as resp:
+                if resp.status != 200:
+                    raise Exception(f"memegen returned {resp.status}")
+                img_data = await resp.read()
+
+        tmp = tempfile.NamedTemporaryFile(suffix=".jpg", delete=False)
+        tmp.write(img_data)
+        tmp.close()
+
         await message.answer_photo(
-            url,
+            types.FSInputFile(tmp.name, filename="meme.jpg"),
             caption=f"🔥 Delivered by *{MEME_LORD_NAME}*"
         )
+        os.unlink(tmp.name)
+
     except Exception as e:
         logger.error(f"Meme generation failed: {e}")
         # Fallback: try without custom text
         try:
             fallback_url = f"https://api.memegen.link/images/{template}.jpg"
+            async with aiohttp.ClientSession() as session:
+                async with session.get(fallback_url, allow_redirects=True) as resp:
+                    if resp.status != 200:
+                        raise Exception(f"fallback returned {resp.status}")
+                    img_data = await resp.read()
+
+            tmp = tempfile.NamedTemporaryFile(suffix=".jpg", delete=False)
+            tmp.write(img_data)
+            tmp.close()
+
             await message.answer_photo(
-                fallback_url,
-                caption=f"⚠️ Custom text failed, here's the template.\nDelivered by *{MEME_LORD_NAME}*"
+                types.FSInputFile(tmp.name, filename="meme.jpg"),
+                caption=f"⚠️ Custom text failed, here's the blank template.\nDelivered by *{MEME_LORD_NAME}*"
             )
+            os.unlink(tmp.name)
         except Exception as e2:
             logger.error(f"Fallback also failed: {e2}")
             await message.answer("❌ Failed to generate meme. Try different text or another template.")
