@@ -19,16 +19,16 @@ dp = Dispatcher()
 MEME_LORD_NAME = "Meme Lord 69"
 
 TEMPLATES = {
-    "drake": "Drake Hotline Bling",
-    "distracted": "Distracted Boyfriend",
+    "drake": "Drakeposting",
+    "db": "Distracted Boyfriend",
     "success": "Success Kid",
-    "changemymind": "Change My Mind",
+    "cmm": "Change My Mind",
     "spongebob": "Mocking SpongeBob",
-    "onedoesnot": "One Does Not Simply",
+    "mordor": "One Does Not Simply",
     "fine": "This Is Fine",
-    "expandingbrain": "Expanding Brain",
-    "womanyelling": "Woman Yelling At Cat",
-    "exit12": "Exit 12",
+    "gb": "Galaxy Brain",
+    "woman-cat": "Woman Yelling at a Cat",
+    "exit": "Left Exit 12 Off Ramp",
 }
 
 # Track user's selected template and text step
